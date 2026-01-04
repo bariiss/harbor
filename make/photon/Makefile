@@ -18,8 +18,19 @@ TIMESTAMP=$(shell date +"%Y%m%d")
 
 # docker parameters
 DOCKERCMD=$(shell which docker)
-DOCKERBUILD=$(DOCKERCMD) build --no-cache --network=$(DOCKERNETWORK)
-DOCKERBUILD_WITH_PULL_PARA=$(DOCKERBUILD) --pull=$(PULL_BASE_FROM_DOCKERHUB)
+PLATFORM?=
+DOCKERBUILD=$(DOCKERCMD) build --no-cache --network=$(DOCKERNETWORK) $(if $(PLATFORM),--platform $(PLATFORM))
+# If BUILD_BASE=true and PLATFORM is specified, use local base images (--pull=false)
+# Otherwise, use PULL_BASE_FROM_DOCKERHUB setting
+ifeq ($(BUILD_BASE),true)
+	ifeq ($(PLATFORM),)
+		DOCKERBUILD_WITH_PULL_PARA=$(DOCKERBUILD) --pull=$(PULL_BASE_FROM_DOCKERHUB)
+	else
+		DOCKERBUILD_WITH_PULL_PARA=$(DOCKERBUILD) --pull=false
+	endif
+else
+	DOCKERBUILD_WITH_PULL_PARA=$(DOCKERBUILD) --pull=$(PULL_BASE_FROM_DOCKERHUB)
+endif
 DOCKERRMIMAGE=$(DOCKERCMD) rmi
 DOCKERIMAGES=$(DOCKERCMD) images
 IMAGENAMESPACE=goharbor
