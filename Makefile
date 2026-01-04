@@ -46,12 +46,26 @@
 # cleanbinary:	remove core and jobservice binary
 # cleanbaseimage:
 #               remove the base images of Harbor images
+# clean_base_images:
+#               remove all base images (goharbor/harbor-*-base:*)
 # cleanimage: 	remove Harbor images
 # cleandockercomposefile:
 #				remove specific version docker-compose
 # cleanversiontag:
 #				cleanpackageremove specific version tag
 # cleanpackage: remove online/offline install package
+#
+# build_arm64:  build Harbor images for ARM64 architecture
+#               requires: VERSIONTAG (e.g., v2.14.1)
+#               example: make build_arm64 -e VERSIONTAG=v2.14.1
+#
+# tag_and_push: tag and push Harbor images to registry
+#               requires: VERSIONTAG and OWNER (e.g., ghcr.io/username)
+#               example: make tag_and_push -e VERSIONTAG=v2.14.1 -e OWNER=ghcr.io/username
+#
+# build_and_push_arm64: clean base images, build for ARM64, and push to registry
+#                       requires: VERSIONTAG and OWNER
+#                       example: make build_and_push_arm64 -e VERSIONTAG=v2.14.1 -e OWNER=ghcr.io/username
 #
 # other example:
 #	clean specific version binaries and images:
@@ -85,6 +99,10 @@ BUILDTRIVYADP=true
 NPM_REGISTRY=https://registry.npmjs.org
 BUILDTARGET=build
 GEN_TLS=
+# platform for docker build (e.g., linux/arm64, linux/amd64)
+PLATFORM=
+# owner for pushing images to registry (e.g., ghcr.io/username)
+OWNER=
 
 # version prepare
 # for docker image tag
@@ -388,6 +406,11 @@ prepare: update_prepare_version
 
 build:
 # PUSHBASEIMAGE should not be true if BUILD_BASE is not true
+# If PLATFORM is specified, BUILD_BASE should typically be true to build base images for that platform
+	@if [ -n "$(PLATFORM)" ] && [ "$(BUILD_BASE)" != "true" ] && [ "$(BUILD_BASE)" != "false" ]; then \
+		echo "Warning: PLATFORM is specified but BUILD_BASE is not set. Base images may need to be built for the specified platform."; \
+		echo "Consider using: make build_arm64 -e VERSIONTAG=... or add -e BUILD_BASE=true"; \
+	fi
 	@if [ "$(PULL_BASE_FROM_DOCKERHUB)" != "true" ] && [ "$(PULL_BASE_FROM_DOCKERHUB)" != "false" ] ; then \
 		echo set PULL_BASE_FROM_DOCKERHUB to true or false.; exit 1; \
 	fi
@@ -395,19 +418,37 @@ build:
 		echo Do not push base images since no base images built. ; \
 		exit 1; \
 	fi
-	make -f $(MAKEFILEPATH_PHOTON)/Makefile $(BUILDTARGET) -e DEVFLAG=$(DEVFLAG) -e GOBUILDIMAGE=$(GOBUILDIMAGE) -e NODEBUILDIMAGE=$(NODEBUILDIMAGE) \
-	 -e REGISTRYVERSION=$(REGISTRYVERSION) -e REGISTRY_SRC_TAG=$(REGISTRY_SRC_TAG)  -e DISTRIBUTION_SRC=$(DISTRIBUTION_SRC)\
-	 -e TRIVYVERSION=$(TRIVYVERSION) -e TRIVYADAPTERVERSION=$(TRIVYADAPTERVERSION) \
-	 -e VERSIONTAG=$(VERSIONTAG) \
-	 -e DOCKERNETWORK=$(DOCKERNETWORK) \
-	 -e BUILDREG=$(BUILDREG) -e BUILDTRIVYADP=$(BUILDTRIVYADP) \
-	 -e BUILD_INSTALLER=$(BUILD_INSTALLER) \
-	 -e NPM_REGISTRY=$(NPM_REGISTRY) -e BASEIMAGETAG=$(BASEIMAGETAG) -e IMAGENAMESPACE=$(IMAGENAMESPACE) -e BASEIMAGENAMESPACE=$(BASEIMAGENAMESPACE) \
-	 -e REGISTRYURL=$(REGISTRYURL) \
-	 -e TRIVY_DOWNLOAD_URL=$(TRIVY_DOWNLOAD_URL) -e TRIVY_ADAPTER_DOWNLOAD_URL=$(TRIVY_ADAPTER_DOWNLOAD_URL) \
-	 -e PULL_BASE_FROM_DOCKERHUB=$(PULL_BASE_FROM_DOCKERHUB) -e BUILD_BASE=$(BUILD_BASE) \
-	 -e REGISTRYUSER=$(REGISTRYUSER) -e REGISTRYPASSWORD=$(REGISTRYPASSWORD) \
-	 -e PUSHBASEIMAGE=$(PUSHBASEIMAGE) -e GOBUILDIMAGE=$(GOBUILDIMAGE)
+	@if [ -n "$(PLATFORM)" ] && [ "$(BUILD_BASE)" != "false" ]; then \
+		make -f $(MAKEFILEPATH_PHOTON)/Makefile $(BUILDTARGET) -e DEVFLAG=$(DEVFLAG) -e GOBUILDIMAGE=$(GOBUILDIMAGE) -e NODEBUILDIMAGE=$(NODEBUILDIMAGE) \
+		 -e REGISTRYVERSION=$(REGISTRYVERSION) -e REGISTRY_SRC_TAG=$(REGISTRY_SRC_TAG)  -e DISTRIBUTION_SRC=$(DISTRIBUTION_SRC)\
+		 -e TRIVYVERSION=$(TRIVYVERSION) -e TRIVYADAPTERVERSION=$(TRIVYADAPTERVERSION) \
+		 -e VERSIONTAG=$(VERSIONTAG) \
+		 -e DOCKERNETWORK=$(DOCKERNETWORK) \
+		 -e BUILDREG=$(BUILDREG) -e BUILDTRIVYADP=$(BUILDTRIVYADP) \
+		 -e BUILD_INSTALLER=$(BUILD_INSTALLER) \
+		 -e NPM_REGISTRY=$(NPM_REGISTRY) -e BASEIMAGETAG=$(BASEIMAGETAG) -e IMAGENAMESPACE=$(IMAGENAMESPACE) -e BASEIMAGENAMESPACE=$(BASEIMAGENAMESPACE) \
+		 -e REGISTRYURL=$(REGISTRYURL) \
+		 -e TRIVY_DOWNLOAD_URL=$(TRIVY_DOWNLOAD_URL) -e TRIVY_ADAPTER_DOWNLOAD_URL=$(TRIVY_ADAPTER_DOWNLOAD_URL) \
+		 -e PULL_BASE_FROM_DOCKERHUB=$(PULL_BASE_FROM_DOCKERHUB) -e BUILD_BASE=true \
+		 -e REGISTRYUSER=$(REGISTRYUSER) -e REGISTRYPASSWORD=$(REGISTRYPASSWORD) \
+		 -e PUSHBASEIMAGE=$(PUSHBASEIMAGE) -e GOBUILDIMAGE=$(GOBUILDIMAGE) \
+		 -e PLATFORM=$(PLATFORM); \
+	else \
+		make -f $(MAKEFILEPATH_PHOTON)/Makefile $(BUILDTARGET) -e DEVFLAG=$(DEVFLAG) -e GOBUILDIMAGE=$(GOBUILDIMAGE) -e NODEBUILDIMAGE=$(NODEBUILDIMAGE) \
+		 -e REGISTRYVERSION=$(REGISTRYVERSION) -e REGISTRY_SRC_TAG=$(REGISTRY_SRC_TAG)  -e DISTRIBUTION_SRC=$(DISTRIBUTION_SRC)\
+		 -e TRIVYVERSION=$(TRIVYVERSION) -e TRIVYADAPTERVERSION=$(TRIVYADAPTERVERSION) \
+		 -e VERSIONTAG=$(VERSIONTAG) \
+		 -e DOCKERNETWORK=$(DOCKERNETWORK) \
+		 -e BUILDREG=$(BUILDREG) -e BUILDTRIVYADP=$(BUILDTRIVYADP) \
+		 -e BUILD_INSTALLER=$(BUILD_INSTALLER) \
+		 -e NPM_REGISTRY=$(NPM_REGISTRY) -e BASEIMAGETAG=$(BASEIMAGETAG) -e IMAGENAMESPACE=$(IMAGENAMESPACE) -e BASEIMAGENAMESPACE=$(BASEIMAGENAMESPACE) \
+		 -e REGISTRYURL=$(REGISTRYURL) \
+		 -e TRIVY_DOWNLOAD_URL=$(TRIVY_DOWNLOAD_URL) -e TRIVY_ADAPTER_DOWNLOAD_URL=$(TRIVY_ADAPTER_DOWNLOAD_URL) \
+		 -e PULL_BASE_FROM_DOCKERHUB=$(PULL_BASE_FROM_DOCKERHUB) -e BUILD_BASE=$(BUILD_BASE) \
+		 -e REGISTRYUSER=$(REGISTRYUSER) -e REGISTRYPASSWORD=$(REGISTRYPASSWORD) \
+		 -e PUSHBASEIMAGE=$(PUSHBASEIMAGE) -e GOBUILDIMAGE=$(GOBUILDIMAGE) \
+		 -e PLATFORM=$(PLATFORM); \
+	fi
 
 build_standalone_db_migrator: compile_standalone_db_migrator
 	make -f $(MAKEFILEPATH_PHOTON)/Makefile _build_standalone_db_migrator -e BASEIMAGETAG=$(BASEIMAGETAG) -e VERSIONTAG=$(VERSIONTAG)
@@ -570,6 +611,43 @@ cleanbaseimage:
 	@for name in $(BUILDBASETARGET); do \
 		$(DOCKERRMIMAGE) -f $(BASEIMAGENAMESPACE)/harbor-$$name-base:$(BASEIMAGETAG) ; \
 	done
+
+clean_base_images:
+	@echo "cleaning all base images..."
+	@docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^goharbor/harbor-.*-base:' | xargs -r docker rmi 2>/dev/null || echo "No base images found to clean"
+
+build_arm64:
+	@echo "building Harbor images for ARM64 architecture..."
+	@if [ -z "$(VERSIONTAG)" ] || [ "$(VERSIONTAG)" = "dev" ]; then \
+		echo "Error: VERSIONTAG must be set (e.g., v2.14.1)"; \
+		exit 1; \
+	fi
+	@make build -e DEVFLAG=false -e VERSIONTAG=$(VERSIONTAG) -e PLATFORM="linux/arm64" -e BUILD_BASE=true
+
+tag_and_push:
+	@echo "tagging and pushing Harbor images..."
+	@if [ -z "$(VERSIONTAG)" ] || [ "$(VERSIONTAG)" = "dev" ]; then \
+		echo "Error: VERSIONTAG must be set (e.g., v2.14.1)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(OWNER)" ]; then \
+		echo "Error: OWNER must be set (e.g., ghcr.io/username)"; \
+		exit 1; \
+	fi
+	@docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^goharbor/.+:'"$(VERSIONTAG)"'$$' | while read -r img; do \
+		repo=$${img%%:*}; \
+		name=$${repo#goharbor/}; \
+		echo "Tagging and pushing $$name:$(VERSIONTAG)"; \
+		docker tag "$$repo:$(VERSIONTAG)" "$(OWNER)/$$name:$(VERSIONTAG)" || exit 1; \
+		docker push "$(OWNER)/$$name:$(VERSIONTAG)" || exit 1; \
+		docker tag "$$repo:$(VERSIONTAG)" "$(OWNER)/$$name:latest" || exit 1; \
+		docker push "$(OWNER)/$$name:latest" || exit 1; \
+		echo "Successfully pushed $$name:$(VERSIONTAG) and $$name:latest"; \
+	done
+	@echo "Done tagging and pushing all images."
+
+build_and_push_arm64: clean_base_images build_arm64 tag_and_push
+	@echo "Build and push for ARM64 completed successfully."
 
 cleanimage:
 	@echo "cleaning image for photon..."

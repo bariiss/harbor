@@ -16,6 +16,8 @@
 
 </br> </br>
 
+> **ARM64 Support**: This fork includes enhancements for ARM64 architecture support. You can build Harbor images for ARM64 platforms using the provided Makefile targets. The images built from this fork are available for use. See the [Building for ARM64](#building-for-arm64) section below for details.
+
 **Note**: The `main` branch may be in an *unstable or even broken state* during development.
 Please use [releases](https://github.com/goharbor/harbor/releases) instead of the `main` branch in order to get a stable set of binaries.
 
@@ -61,6 +63,56 @@ Download binaries of **[Harbor release ](https://github.com/goharbor/harbor/rele
 If you want to deploy Harbor on Kubernetes, please use the **[Harbor chart](https://github.com/goharbor/harbor-helm)**.
 
 Refer to the **[documentation](https://goharbor.io/docs/)** for more details on how to use Harbor.
+
+## Building for ARM64
+
+This fork includes enhanced support for building Harbor images for ARM64 architecture. The following Makefile targets are available:
+
+### Quick Start
+
+Build and push all Harbor images for ARM64 in one command:
+
+```bash
+make build_and_push_arm64 -e VERSIONTAG=v2.14.1 -e OWNER=ghcr.io/your-username
+```
+
+### Step-by-Step
+
+1. **Clean base images** (optional, if rebuilding from scratch):
+   ```bash
+   make clean_base_images
+   ```
+
+2. **Build Harbor images for ARM64**:
+   ```bash
+   make build_arm64 -e VERSIONTAG=v2.14.1
+   ```
+
+3. **Tag and push images to your registry**:
+   ```bash
+   make tag_and_push -e VERSIONTAG=v2.14.1 -e OWNER=ghcr.io/your-username
+   ```
+
+### Using the Standard Build Target
+
+You can also use the standard `build` target with platform specification:
+
+```bash
+make build -e DEVFLAG=false -e VERSIONTAG=v2.14.1 -e PLATFORM="linux/arm64" -e BUILD_BASE=true
+```
+
+### Available Targets
+
+- `build_arm64`: Builds all Harbor images for ARM64 architecture
+- `tag_and_push`: Tags and pushes images to a specified registry
+- `build_and_push_arm64`: Combines clean, build, and push operations
+- `clean_base_images`: Removes all base images to force a clean rebuild
+
+### Notes
+
+- When `PLATFORM` is specified, base images are automatically built for that platform
+- The built images are compatible with ARM64 systems (e.g., Apple Silicon, ARM-based servers)
+- Images can be pushed to any container registry (Docker Hub, GHCR, etc.)
 
 ## OCI Distribution Conformance Tests
 
